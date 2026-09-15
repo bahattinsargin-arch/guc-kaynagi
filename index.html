@@ -1,2 +1,377 @@
-<h1>Akilli Guc Kaynagi</h1>
-<p>Web arayuzu calisiyor :)</p>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>Akilli Guc Kaynagi</title>
+<!-- Paho MQTT kütüphanesi -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+<style>
+body { background-color: #f1f5f9; color: #1e293b; font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 15px; text-align: center; }
+.top-bar { display: flex; justify-content: space-between; align-items: center; max-width: 700px; margin: 0 auto 10px auto; }
+h2 { color: #0284c7; margin: 0; font-size: 20px; text-align: left; }
+.menu-btn { background: #0284c7; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 18px; cursor: pointer; font-weight: bold; }
+
+.modal { display: none; position: fixed; z-index: 99; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+.modal-content { background-color: #ffffff; margin: 10% auto; padding: 20px; border-radius: 12px; width: 85%; max-width: 400px; text-align: left; box-shadow: 0 5px 15px rgba(0,0,0,0.2); max-height: 80vh; overflow-y: auto; }
+.close { color: #aaa; float: right; font-size: 24px; font-weight: bold; cursor: pointer; }
+.modal-content h3 { color: #0284c7; margin-top: 0; border-bottom: 2px solid #f1f5f9; padding-bottom: 5px; font-size: 16px; }
+
+.btn-save { background: #22c55e; color: white; border: none; width: 100%; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+.btn-reset { background: #ef4444; color: white; border: none; width: 100%; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+.btn-scan { background: #8b5cf6; color: white; border: none; width: 100%; padding: 8px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-bottom: 8px; font-size: 12px; }
+
+.wifi-config-section { margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+.wifi-group { margin-bottom: 8px; }
+.wifi-group label { display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 3px; }
+.wifi-input-wrapper { display: flex; position: relative; }
+.wifi-input, .wifi-select { width: 100%; padding: 7px 30px 7px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: #f8fafc; color: #0f172a; box-sizing: border-box; }
+.wifi-select { padding-right: 8px; }
+.eye-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 14px; color: #64748b; }
+
+.header-info { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-bottom: 15px; font-size: 11px; font-weight: 600; }
+.info-badge { background: #ffffff; border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; color: #475569; }
+.wifi-badge { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; max-width: 700px; margin: 0 auto 15px auto; }
+.port-card { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); text-align: left; display: flex; flex-direction: column; justify-content: space-between; }
+
+.port-header { background: #edf2f7; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.port-header h3 { margin: 0; font-size: 14px; color: #5b21b6; font-weight: 700; letter-spacing: 0.3px; }
+
+.metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.metric-box { background: #edf2f7; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; text-align: center; }
+.metric-box .label { font-size: 10px; color: #475569; text-transform: uppercase; font-weight: 700; margin-bottom: 2px; }
+
+.val-volt { font-size: 14px; font-weight: 700; color: #16a34a; }
+.val-akim { font-size: 14px; font-weight: 700; color: #dc2626; }
+.val-watt { font-size: 14px; font-weight: 700; color: #2563eb; }
+
+.battery-container { background: #000000; border: 1px solid #334155; border-radius: 8px; padding: 8px; text-align: center; margin-bottom: 10px; position: relative; overflow: hidden; }
+.battery-fill { position: absolute; left: 0; top: 0; bottom: 0; background: #22c55e; width: 0%; transition: width 0.4s ease; z-index: 1; opacity: 0.45; }
+.battery-content { position: relative; z-index: 2; }
+.battery-container .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700; margin-bottom: 2px; }
+.val-battery { font-size: 14px; font-weight: 700; color: #4ade80; }
+
+.btn-port { width: 100%; padding: 9px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; color: #fff; margin-top: auto; }
+.btn-on { background: #22c55e; } .btn-off { background: #ef4444; }
+
+.section-box { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; max-width: 700px; margin: 0 auto 15px auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); text-align: left; }
+.section-box h3 { margin-top: 0; font-size: 14px; color: #7c3aed; border-bottom: 2px solid #f1f5f9; padding-bottom: 6px; }
+
+.config-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; margin-bottom: 10px; display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+.config-group { display: flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: #475569; }
+input.ai-input { padding: 4px; width: 50px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; text-align: center; font-weight: bold; font-size: 12px; }
+.btn-set { background: #0284c7; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
+
+.ai-action-group { display: flex; gap: 6px; align-items: center; width: 100%; margin-top: 4px; }
+.btn-ai { flex: 1; background: #0284c7; color: #fff; border: none; padding: 9px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
+.mic-btn { flex: 1; background: #8b5cf6; color: #fff; border: none; padding: 9px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
+.mic-btn.listening { background: #ef4444; }
+</style>
+</head>
+<body>
+
+<div class='top-bar'><h2>AKILLI GUC KAYNAGI</h2><button class='menu-btn' onclick='openMenu()'>&#9776;</button></div>
+
+<div id='menuModal' class='modal'><div class='modal-content'>
+<span class='close' onclick='closeMenu()'>&times;</span>
+<h3>&#9881;&#65039; Sistem ve Ag Ayarlari</h3>
+<div id="mqtt-status" style="font-size:12px; font-weight:bold; color:#d97706; margin-bottom:10px;">MQTT: Baglaniliyor...</div>
+
+<div class="wifi-config-section">
+<button class='btn-scan' onclick='scanWifi()'>&#128269; Cevredeki Wi-Fi Aglarini Tara</button>
+<div class="wifi-group">
+<label>Bulunan / Secilen Ag (SSID)</label>
+<select id="wifi-select" class="wifi-select" onchange="selectWifiNetwork(this)">
+<option value="">-- Ag Secin veya Yazin --</option>
+</select>
+<input type="text" id="wifi-ssid" class="wifi-input" placeholder="Veya manuel SSID yazın" style="margin-top:5px;">
+</div>
+<div class="wifi-group">
+<label>Wi-Fi Sifresi</label>
+<div class="wifi-input-wrapper">
+<input type="password" id="wifi-pass" class="wifi-input" placeholder="Sifre">
+<button type="button" class="eye-btn" onclick="togglePassword()">👁️</button>
+</div>
+</div>
+<button class='btn-save' onclick='saveWifiSettings()'>💾 Kaydet & Baglan (Reset)</button>
+</div>
+
+<button class='btn-reset' onclick='resetEsp()'>&#128260; Cihazi Yeniden Baslat (Reset)</button>
+</div></div>
+
+<div class='header-info'>
+<div class='info-badge'>&#8983; <span id='clock'>--:--:--</span></div>
+<div class='info-badge'>&#128197; <span id='date'>--.--.----</span></div>
+<div class='info-badge'>&#127777;&#65039; Cihaz Ic: <strong id='temp'>--</strong>°C</div>
+<div class='info-badge'>&#127778;&#65039; Dis Sicaklik: <strong id='ext-temp'>--</strong>°C</div>
+<div class='info-badge wifi-badge' id='wifi-status-badge'>&#128246; Bulut Aktif</div>
+</div>
+
+<div class='grid'>
+<!-- Sarj Istasyonu -->
+<div class='port-card'><div><div class='port-header'><h3>Sarj Istasyonu</h3></div>
+<div class='metrics-grid'>
+<div class='metric-box'><div class='label'>Volt (Pil)</div><div class='val-volt' id='sarj-v'>-- V</div></div>
+<div class='metric-box'><div class='label'>Akim</div><div class='val-akim' id='sarj-i'>-- A</div></div>
+<div class='metric-box'><div class='label'>Guc</div><div class='val-watt' id='sarj-w'>-- W</div></div>
+</div>
+<div class='battery-container'>
+<div id='battery-fill-bar' class='battery-fill'></div>
+<div class='battery-content'><div class='label'>Batarya Doluluk Orani</div><div class='val-battery' id='soc'>%--</div></div>
+</div>
+</div><button id='btn-sarj' class='btn-port' onclick="togglePort('sarj')">Bekleniyor</button></div>
+
+<!-- Ayarlanabilir Guc -->
+<div class='port-card'><div><div class='port-header'><h3>Ayarlanabilir Guc</h3></div>
+<div class='metrics-grid'>
+<div class='metric-box'><div class='label'>Voltaj</div><div class='val-volt' id='ayar-v'>-- V</div></div>
+<div class='metric-box'><div class='label'>Akim</div><div class='val-akim' id='ayar-i'>-- A</div></div>
+<div class='metric-box'><div class='label'>Guc</div><div class='val-watt' id='ayar-w'>-- W</div></div>
+</div>
+<div class='config-box'>
+<div class='config-group'>V:<input type='number' id='set-v' class='ai-input' step='0.1' placeholder='12.0'></div>
+<div class='config-group'>A:<input type='number' id='set-i' class='ai-input' step='0.1' placeholder='1.0'></div>
+<button class='btn-set' onclick='manuelAyarla()'>Ayarla</button>
+</div></div><button id='btn-ayar' class='btn-port' onclick="togglePort('ayar')">Bekleniyor</button></div>
+
+<!-- Sabit 12V Cikis -->
+<div class='port-card'><div><div class='port-header'><h3>Sabit 12V Cikis</h3></div>
+<div class='metrics-grid'>
+<div class='metric-box'><div class='label'>Voltaj</div><div class='val-volt'>12.0 V</div></div>
+<div class='metric-box'><div class='label'>Akim</div><div class='val-akim' id='s12-i'>-- A</div></div>
+<div class='metric-box'><div class='label'>Guc</div><div class='val-watt' id='s12-w'>-- W</div></div>
+</div></div><button id='btn-12v' class='btn-port' onclick="togglePort('12v')">Bekleniyor</button></div>
+
+<!-- USB Cikisi -->
+<div class='port-card'><div><div class='port-header'><h3>USB Cikisi</h3></div>
+<div class='metrics-grid'>
+<div class='metric-box'><div class='label'>Voltaj</div><div class='val-volt'>5.0 V</div></div>
+<div class='metric-box'><div class='label'>Akim</div><div class='val-akim' id='usb-i'>-- A</div></div>
+<div class='metric-box'><div class='label'>Guc</div><div class='val-watt' id='usb-w'>-- W</div></div>
+</div></div><button id='btn-usb' class='btn-port' onclick="togglePort('usb')">Bekleniyor</button></div>
+</div>
+
+<div class='section-box'><h3>&#9889;&#65039; Genel Sistem ve Hizli Kontroller</h3>
+<div style='font-size: 13px; color: #64748b; margin-bottom: 10px;'>Ana Giris Kaynagi (24V): <strong style='color:#16a34a;' id='ana'>-- V</strong></div>
+<div style='display: flex; gap: 10px; margin-bottom: 10px;'>
+<button style='flex:1; background:#22c55e; color:#fff; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;' onclick="komut('hepsi', 1)">Tum Portlari Ac</button>
+<button style='flex:1; background:#ef4444; color:#fff; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;' onclick="komut('hepsi', 0)">Tum Portlari Kapat</button>
+</div>
+<div class='ai-action-group'>
+<button class='btn-ai' onclick='aiKomutGonder()'>&#129302; AI Asistan</button>
+<button id='micBtn' class='mic-btn' onclick='toggleMic()'>&#127897;&#65039; Sesli Komut</button>
+</div></div>
+
+<script>
+let portStates = { usb: true, '12v': true, ayar: true, sarj: true };
+
+const mqttHost = "broker.hivemq.com";
+const mqttPort = 8884;
+let clientId = "WebClient-" + Math.random().toString(16).substring(2, 8);
+let client = new Paho.MQTT.Client(mqttHost, mqttPort, clientId);
+
+client.onConnectionLost = onConnectionLost;
+client.onMessageArrived = onMessageArrived;
+
+client.connect({
+  onSuccess: onConnect,
+  onFailure: onFailure,
+  useSSL: true
+});
+
+function onConnect() {
+  console.log("MQTT Bağlandı!");
+  document.getElementById('mqtt-status').innerText = "MQTT: Bağlı (Canlı)";
+  document.getElementById('mqtt-status').style.color = "#16a34a";
+  client.subscribe("esp32/power/status");
+  client.subscribe("esp32/power/networks");
+}
+
+function onFailure(responseObject) {
+  document.getElementById('mqtt-status').innerText = "MQTT: Bağlantı Kurulamadı!";
+  document.getElementById('mqtt-status').style.color = "#dc2626";
+}
+
+function onConnectionLost(responseObject) {
+  if (responseObject.errorCode !== 0) {
+    document.getElementById('mqtt-status').innerText = "MQTT: Bağlantı Koptu, Yeniden bağlanılıyor...";
+    document.getElementById('mqtt-status').style.color = "#dc2626";
+  }
+}
+
+function onMessageArrived(message) {
+  try {
+    let topic = message.destinationName;
+    let payload = message.payloadString;
+
+    if(topic === "esp32/power/networks") {
+      let networks = payload.split(",");
+      let select = document.getElementById('wifi-select');
+      select.innerHTML = '<option value="">-- Ağ Seçin --</option>';
+      networks.forEach(net => {
+        if(net.trim().length > 0) {
+          let opt = document.createElement('option');
+          opt.value = net.trim();
+          opt.text = net.trim();
+          select.appendChild(opt);
+        }
+      });
+      alert("Wi-Fi ağları tarandı ve listeye eklendi!");
+      return;
+    }
+
+    let d = JSON.parse(payload);
+    
+    // Genel Veriler
+    if(d.ana_24v !== undefined) document.getElementById('ana').innerText = d.ana_24v.toFixed(1) + ' V';
+    if(d.temp_c !== undefined) document.getElementById('temp').innerText = d.temp_c.toFixed(1);
+    if(d.ext_temp_c !== undefined) document.getElementById('ext-temp').innerText = d.ext_temp_c.toFixed(1);
+    if(d.soc_percent !== undefined) {
+      document.getElementById('soc').innerText = '%' + d.soc_percent;
+      document.getElementById('battery-fill-bar').style.width = d.soc_percent + '%';
+    }
+
+    // USB Akım ve Güç (Sanal / Gerçek Hareket)
+    if(d.usb_current !== undefined) {
+      document.getElementById('usb-i').innerText = d.usb_current.toFixed(2) + ' A';
+      document.getElementById('usb-w').innerText = (5.0 * d.usb_current).toFixed(1) + ' W';
+    }
+    
+    // Sabit 12V Akım ve Güç
+    if(d.sabit12v_current !== undefined) {
+      document.getElementById('s12-i').innerText = d.sabit12v_current.toFixed(2) + ' A';
+      document.getElementById('s12-w').innerText = (12.0 * d.sabit12v_current).toFixed(1) + ' W';
+    }
+    
+    // Ayarlanabilir Güç Voltaj, Akım ve Güç
+    if(d.volt !== undefined) {
+      document.getElementById('ayar-v').innerText = d.volt.toFixed(2) + ' V';
+      let ayarI = d.ayar_current || 0;
+      document.getElementById('ayar-i').innerText = ayarI.toFixed(2) + ' A';
+      document.getElementById('ayar-w').innerText = (d.volt * ayarI).toFixed(1) + ' W';
+      
+      // Şarj İstasyonu Voltaj, Akım ve Güç
+      document.getElementById('sarj-v').innerText = d.volt.toFixed(2) + ' V';
+      let sarjI = d.sarj_current || 0;
+      document.getElementById('sarj-i').innerText = sarjI.toFixed(2) + ' A';
+      document.getElementById('sarj-w').innerText = (d.volt * sarjI).toFixed(1) + ' W';
+    }
+
+    // Buton Durumları
+    if(d.usb_state !== undefined) updateButtonUI('btn-usb', d.usb_state);
+    if(d.sabit12v_state !== undefined) updateButtonUI('btn-12v', d.sabit12v_state);
+    if(d.ayar_state !== undefined) updateButtonUI('btn-ayar', d.ayar_state);
+    if(d.sarj_state !== undefined) updateButtonUI('btn-sarj', d.sarj_state);
+
+  } catch(e) {
+    console.log("Mesaj işleme hatası: ", e);
+  }
+}
+
+function publishMqtt(cmd) {
+  if (client.isConnected()) {
+    message = new Paho.MQTT.Message(cmd);
+    message.destinationName = "esp32/power/cmd";
+    client.send(message);
+  } else {
+    alert("MQTT bağlantısı kurulamadı!");
+  }
+}
+
+function openMenu() { document.getElementById('menuModal').style.display = 'block'; }
+function closeMenu() { document.getElementById('menuModal').style.display = 'none'; }
+
+function togglePassword() {
+  let passInput = document.getElementById('wifi-pass');
+  passInput.type = (passInput.type === "password") ? "text" : "password";
+}
+
+function scanWifi() {
+  publishMqtt("WIFI_SCAN");
+  alert("Wi-Fi tarama isteği gönderildi, lütfen birkaç saniye bekleyin...");
+}
+
+function selectWifiNetwork(sel) {
+  if(sel.value) {
+    document.getElementById('wifi-ssid').value = sel.value;
+  }
+}
+
+function saveWifiSettings() {
+  let ssid = document.getElementById('wifi-ssid').value;
+  let pass = document.getElementById('wifi-pass').value;
+  if(!ssid) {
+    alert('Lütfen bir Wi-Fi ağ adı seçin veya yazın!');
+    return;
+  }
+  let cmd = `WIFI_SET:SSID=${ssid},PASS=${pass}`;
+  publishMqtt(cmd);
+  alert('Wi-Fi ayarları ve Kayıt komutu ESP32’ye iletildi. Cihaz yeni ayarlarla yeniden başlatılıyor...');
+  closeMenu();
+}
+
+function resetEsp() { 
+  if(confirm('Cihaz MQTT üzerinden yeniden başlatılsın mı?')) { 
+    publishMqtt("RESET");
+    closeMenu();
+  } 
+}
+
+function updateClock() { let n = new Date(); document.getElementById('clock').innerText = n.toLocaleTimeString('tr-TR'); document.getElementById('date').innerText = n.toLocaleDateString('tr-TR'); }
+setInterval(updateClock, 1000); updateClock();
+
+function togglePort(p) {
+  let ns = !portStates[p];
+  let cmdStr = "";
+  if(p === 'usb') cmdStr = ns ? "USB_AC" : "USB_KAPAT";
+  if(p === '12v') cmdStr = ns ? "12V_AC" : "12V_KAPAT";
+  if(p === 'ayar') cmdStr = ns ? "AYAR_AC" : "AYAR_KAPAT";
+  if(p === 'sarj') cmdStr = ns ? "SARJ_AC" : "SARJ_KAPAT";
+  publishMqtt(cmdStr);
+}
+
+function komut(p, st) {
+  if(p === 'hepsi') {
+    publishMqtt(st === 1 ? "HEPSI_AC" : "HEPSI_KAPAT");
+  }
+}
+
+function manuelAyarla() { 
+  let v = document.getElementById('set-v').value; 
+  let i = document.getElementById('set-i').value; 
+  if(!v && !i) { alert('Lütfen değer girin!'); return; }
+  let cmd = `SET_V:${v || 0},I:${i || 0}`;
+  publishMqtt(cmd);
+  alert('Ayar gönderildi: ' + cmd);
+}
+
+function aiKomutGonder() { alert('Yapay zeka asistanı aktif.'); }
+let isListening = false;
+function toggleMic() {
+  let btn = document.getElementById('micBtn');
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) { alert('Desteklenmiyor.'); return; }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'tr-TR';
+  if (!isListening) {
+    recognition.start(); isListening = true;
+    btn.classList.add('listening'); btn.innerText = 'Dinleniyor...';
+    recognition.onresult = function(e) { alert('Sesli komut: ' + e.results[0][0].transcript); };
+    recognition.onerror = function() { stopMic(); };
+    recognition.onend = function() { stopMic(); };
+  } else { recognition.stop(); stopMic(); }
+}
+function stopMic() { isListening = false; let btn = document.getElementById('micBtn'); btn.classList.remove('listening'); btn.innerText = '🎙️ Sesli Komut'; }
+
+function updateButtonUI(id, state) { 
+  let btn = document.getElementById(id); 
+  if(!btn) return; 
+  portStates[id.replace('btn-', '')] = state; 
+  btn.className = state ? 'btn-port btn-on' : 'btn-port btn-off'; 
+  btn.innerText = state ? 'ACIK' : 'KAPALI'; 
+}
+</script>
+</body>
+</html>
