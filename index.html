@@ -204,4 +204,43 @@ window.onload = () => {
   mqttConnectV21();
 };
 </script>
-</body></html>
+</body
+<script>
+// ===== BHA LAB V21 - GitHub arayüz güvenli düzeltme =====
+chargeModeDegisti = function(v) {
+  chargeModeDirty = true;
+  profilMesajSon = Date.now();
+  const e = document.getElementById('charge-profile-status');
+  if (e) e.textContent = (v === 'auto' ? 'OTOMATİK' : 'MANUEL') +
+    ' seçildi. ESP32’ye gönderme komutu VLAB22 MQTT sözleşmesine eklenecek.';
+};
+
+sarjProfiliUygula = function() {
+  const m = document.getElementById('charge-mode')?.value || 'manual';
+  const c = document.getElementById('battery-chem')?.value || '';
+  const v = document.getElementById('battery-v')?.value || '';
+  const ah = document.getElementById('battery-ah')?.value || '';
+  const s = document.getElementById('charge-profile-status');
+  profileUiDirty = true;
+  profilMesajSon = Date.now();
+  if (s) s.textContent = 'Profil hazır: ' +
+    (m === 'auto' ? 'OTOMATİK' : 'MANUEL') + ' • ' + c + ' • ' + v +
+    ' V • ' + ah + ' Ah. ESP32’ye uygulama komutu VLAB22 MQTT sözleşmesine eklenecek.';
+};
+
+const _bhaAiKomutV21 = aiKomut;
+aiKomut = function(cmd) {
+  const c = String(cmd || '').toLocaleLowerCase('tr-TR');
+  const ac = c.includes('aç') || c.includes('ac');
+  _bhaAiKomutV21(cmd);
+
+  if (c.includes('hepsi') || c.includes('tüm port') || c.includes('tum port'))
+    ['usb','12v','ayar','sarj'].forEach(x => updateButtonUI('btn-' + x, ac));
+  else if (c.includes('usb')) updateButtonUI('btn-usb', ac);
+  else if (c.includes('12v') || c.includes('12 v')) updateButtonUI('btn-12v', ac);
+  else if (c.includes('ayarlı') || c.includes('ayarli')) updateButtonUI('btn-ayar', ac);
+  else if (c.includes('şarj') || c.includes('sarj')) updateButtonUI('btn-sarj', ac);
+};
+</script>
+
+></html>
