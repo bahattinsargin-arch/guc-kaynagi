@@ -257,5 +257,19 @@ window.onload = () => {
   };
 })();
 </script>
+
+// ===== V21 GitHub günlük temizleme koruması =====
+(function(){
+  window.monitorTemizle = function(){
+    const box = document.getElementById('monitorLines');
+    if (box) box.textContent = '';
+    if (typeof uiMesaj === 'function') {
+      uiMesaj('Ekrandaki günlük temizlendi. ESP32 uzak günlük temizleme komutu MQTT sözleşmesine henüz eklenmedi.', 'info');
+    }
+  };
+  window.gunlukTemizle = window.monitorTemizle;
+  window.logTemizle = window.monitorTemizle;
+})();
+
 </body>
 </html>
