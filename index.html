@@ -197,6 +197,64 @@ function mqttTelemetryUygula(d) {
   if(cps) cps.innerText=(d.mode || 'MANUEL')+' • '+(d.chargeState || '--');
 }
 
+
+// ===== BHA LAB V22 - Ayarlı Güç ve Şarj Profili MQTT Köprüsü =====
+manuelAyarla = function() {
+  const ve=document.getElementById('set-v'), ie=document.getElementById('set-i');
+  const a=document.getElementById('adjust-status');
+  const v=Number(ve && ve.value), i=Number(ie && ie.value);
+  if(!isFinite(v)||!isFinite(i)||v<=0||i<=0){
+    if(a){a.textContent='⚠ Voltaj ve akım sıfırdan büyük olmalı.';a.style.color='#b45309';a.style.background='#fffbeb';}
+    return;
+  }
+  if(!mqttKomut('AYAR|'+v.toFixed(2)+'|'+i.toFixed(2))) return;
+  ayarInputDirty=false;
+  window._ayarStatusUserTime=Date.now();
+  if(a){
+    a.textContent='✓ MQTT ayar komutu gönderildi — '+v.toFixed(1)+' V / '+i.toFixed(2)+' A';
+    a.style.color='#166534';a.style.background='#f0fdf4';
+  }
+};
+
+chargeModeDegisti = function(v) {
+  chargeModeDirty=true; profileUiDirty=true; profilMesajSon=Date.now();
+  const e=document.getElementById('charge-profile-status');
+  if(e) e.textContent=(v==='auto'?'OTOMATİK':'MANUEL')+' seçildi. “Profili Uygula” ile ESP32’ye gönderilecek.';
+};
+
+sarjProfiliUygula = function() {
+  const m=document.getElementById('charge-mode').value;
+  const c=document.getElementById('battery-chem').value;
+  const v=Number(document.getElementById('battery-v').value);
+  const ah=Number(document.getElementById('battery-ah').value);
+  const st=document.getElementById('charge-profile-status');
+
+  if(!isFinite(v)||!isFinite(ah)||v<=0||ah<=0){
+    if(st) st.textContent='⚠ Nominal voltaj ve kapasite sıfırdan büyük olmalı.';
+    return;
+  }
+  if(c==='nimh' && m==='auto'){
+    if(st) st.textContent='⚠ NiMH otomatik şarj V22’de güvenlik nedeniyle uygulanmıyor.';
+    return;
+  }
+
+  const modeCmd=(m==='auto')?'CHARGE_MODE|AUTO':'CHARGE_MODE|MANUAL';
+  if(!mqttKomut(modeCmd)) return;
+
+  // Profil parametreleri yalnız otomatik modda donanım şarj profilini etkinleştirir.
+  if(m==='auto'){
+    const chemMap={lead:'LEAD',liion:'LIION',lifepo4:'LIFEPO4',nimh:'NIMH'};
+    const chem=chemMap[c];
+    if(!chem || !mqttKomut('CHARGE_PROFILE|'+chem+'|'+v.toFixed(2)+'|'+ah.toFixed(2))) return;
+  }
+
+  profileUiDirty=false; chargeModeDirty=false; profilMesajSon=Date.now();
+  if(st){
+    st.textContent='✓ MQTT üzerinden uygulandı: '+(m==='auto'?'OTOMATİK':'MANUEL')+
+      (m==='auto'?' • '+c+' • '+v+' V • '+ah+' Ah':'');
+  }
+};
+
 function mqttConnectV21() {
   if (typeof mqtt === 'undefined') {
     mqttBadge('❌ MQTT.js yüklenemedi', false);
