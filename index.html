@@ -94,18 +94,34 @@ manuelAyarla = function() {
 aiKomut = function(cmd) {
   const c = String(cmd || '').toLocaleLowerCase('tr-TR');
   const ac = c.includes('aç') || c.includes('ac');
-  let out = '';
-  if (c.includes('hepsi') || c.includes('tüm port') || c.includes('tum port')) out = ac ? 'HEPSI_AC' : 'HEPSI_KAPAT';
-  else if (c.includes('usb')) out = ac ? 'USB_AC' : 'USB_KAPAT';
-  else if (c.includes('12v') || c.includes('12 v')) out = ac ? '12V_AC' : '12V_KAPAT';
-  else if (c.includes('ayarlı') || c.includes('ayarli')) out = ac ? 'AYAR_AC' : 'AYAR_KAPAT';
-  else if (c.includes('şarj') || c.includes('sarj')) out = ac ? 'SARJ_AC' : 'SARJ_KAPAT';
+  let out = '', port = '';
+
+  if (c.includes('hepsi') || c.includes('tüm port') || c.includes('tum port')) {
+    out = ac ? 'HEPSI_AC' : 'HEPSI_KAPAT'; port = 'hepsi';
+  } else if (c.includes('usb')) {
+    out = ac ? 'USB_AC' : 'USB_KAPAT'; port = 'usb';
+  } else if (c.includes('12v') || c.includes('12 v')) {
+    out = ac ? '12V_AC' : '12V_KAPAT'; port = '12v';
+  } else if (c.includes('ayarlı') || c.includes('ayarli')) {
+    out = ac ? 'AYAR_AC' : 'AYAR_KAPAT'; port = 'ayar';
+  } else if (c.includes('şarj') || c.includes('sarj')) {
+    out = ac ? 'SARJ_AC' : 'SARJ_KAPAT'; port = 'sarj';
+  }
 
   if (!out) {
     uiMesaj('Komut eşleşmedi. USB, 12V, ayarlı güç, şarj veya tüm portları söyleyin.', 'info');
-    return;
+    return false;
   }
-  if (mqttKomut(out)) uiMesaj('Komut gönderildi: ' + out, 'info');
+
+  if (!mqttKomut(out)) return false;
+
+  if (port === 'hepsi') {
+    ['usb','12v','ayar','sarj'].forEach(x => updateButtonUI('btn-' + x, ac));
+  } else {
+    updateButtonUI('btn-' + port, ac);
+  }
+  uiMesaj('Komut gönderildi: ' + out, 'info');
+  return true;
 };
 
 aiGonder = function() {
@@ -244,3 +260,4 @@ window.onload = () => {
 </script>
 
 /html>
+</html>
