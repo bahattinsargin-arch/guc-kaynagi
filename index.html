@@ -343,5 +343,31 @@ window.onload = () => {
   window.logTemizle = window.monitorTemizle;
 })();
 
+
+<script>
+// ===== BHA LAB V224 - MQTT profil geri bildirim koruması =====
+(function(){
+  const eski = window.mqttTelemetryUygula;
+  if (typeof eski !== 'function') return;
+
+  window.mqttTelemetryUygula = function(d){
+    eski(d);
+
+    const pt = document.getElementById('profile-target-v');
+    const pa = document.getElementById('profile-max-a');
+
+    if (pt && d && d.profile_valid === true &&
+        Number.isFinite(Number(d.profile_target_v))) {
+      pt.innerText = Number(d.profile_target_v).toFixed(2) + ' V';
+    }
+
+    if (pa && d && d.profile_valid === true &&
+        Number.isFinite(Number(d.profile_max_a))) {
+      pa.innerText = Number(d.profile_max_a).toFixed(2) + ' A';
+    }
+  };
+})();
+</script>
+
 </body>
 </html>
