@@ -180,6 +180,9 @@ function mqttTelemetryUygula(d) {
   set('s12-i', n(s12A)+' A'); set('s12-w', n(12*s12A,1)+' W');
   set('ayar-v', n(volt)+' V'); set('ayar-i', n(ayarA)+' A'); set('ayar-w', n(volt*ayarA,1)+' W');
   set('sarj-v', n(volt)+' V'); set('sarj-i', n(sarjA)+' A'); set('sarj-w', n(volt*sarjA,1)+' W');
+  // V22 şarj profili geri bildirimi
+  if (typeof d.profile_target_v !== 'undefined') set('profile-target-v', n(d.profile_target_v,2)+' V');
+  if (typeof d.profile_max_a !== 'undefined') set('profile-max-a', n(d.profile_max_a,2)+' A');
 
   const usbW=5*usbA, s12W=12*s12A, ayarW=volt*ayarA, sarjW=volt*sarjA;
   set('sum-usb-w', n(usbW,1)+' W');
