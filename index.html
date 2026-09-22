@@ -180,9 +180,21 @@ function mqttTelemetryUygula(d) {
   set('s12-i', n(s12A)+' A'); set('s12-w', n(12*s12A,1)+' W');
   set('ayar-v', n(volt)+' V'); set('ayar-i', n(ayarA)+' A'); set('ayar-w', n(volt*ayarA,1)+' W');
   set('sarj-v', n(volt)+' V'); set('sarj-i', n(sarjA)+' A'); set('sarj-w', n(volt*sarjA,1)+' W');
-  // V22 şarj profili geri bildirimi
-  if (typeof d.profile_target_v !== 'undefined' && Number.isFinite(Number(d.profile_target_v))) set('profile-target-v', Number(d.profile_target_v).toFixed(2)+' V');
-  if (typeof d.profile_max_a !== 'undefined' && Number.isFinite(Number(d.profile_max_a))) set('profile-max-a', Number(d.profile_max_a).toFixed(2)+' A');
+  // VLAB226: Otomatik modda hesaplanan profil hedeflerini göster.
+  // Manuel modda eski otomatik profil değerlerini ekranda tutma; bunlar manuel ayar değildir.
+  const teleMode = String(d.mode || '').toUpperCase();
+  if (teleMode === 'MANUEL') {
+    set('profile-target-v', 'MANUEL');
+    set('profile-max-a', 'MANUEL');
+  } else {
+    if (typeof d.profile_target_v !== 'undefined' && Number.isFinite(Number(d.profile_target_v))) set('profile-target-v', Number(d.profile_target_v).toFixed(2)+' V');
+    if (typeof d.profile_max_a !== 'undefined' && Number.isFinite(Number(d.profile_max_a))) set('profile-max-a', Number(d.profile_max_a).toFixed(2)+' A');
+  }
+  const modeSel=document.getElementById('charge-mode');
+  if(modeSel && !chargeModeDirty){
+    modeSel.value=(teleMode==='OTOMATIK'?'auto':'manual');
+    chargeModeUiGuncelle(modeSel.value, true);
+  }
 
   const usbW=5*usbA, s12W=12*s12A, ayarW=volt*ayarA, sarjW=volt*sarjA;
   set('sum-usb-w', n(usbW,1)+' W');
@@ -219,10 +231,29 @@ manuelAyarla = function() {
   }
 };
 
+function chargeModeUiGuncelle(v, telemetrySync=false) {
+  const manual=(v!=='auto');
+  const chem=document.getElementById('battery-chem');
+  const nom=document.getElementById('battery-v');
+  const ah=document.getElementById('battery-ah');
+  [chem,nom,ah].forEach(el=>{if(el) el.disabled=manual;});
+  if(manual){
+    const pt=document.getElementById('profile-target-v');
+    const pa=document.getElementById('profile-max-a');
+    if(pt) pt.textContent='MANUEL';
+    if(pa) pa.textContent='MANUEL';
+  }
+  if(!telemetrySync){
+    const e=document.getElementById('charge-profile-status');
+    if(e) e.textContent=manual
+      ? 'MANUEL seçildi • Otomatik batarya profili kullanılmaz; şarj portu kullanıcı kontrolündedir.'
+      : 'OTOMATİK seçildi • Batarya tipi, nominal voltaj ve kapasiteye göre güvenli profil hesaplanır.';
+  }
+}
+
 chargeModeDegisti = function(v) {
   chargeModeDirty=true; profileUiDirty=true; profilMesajSon=Date.now();
-  const e=document.getElementById('charge-profile-status');
-  if(e) e.textContent=(v==='auto'?'OTOMATİK':'MANUEL')+' seçildi. “Profili Uygula” ile ESP32’ye gönderilecek.';
+  chargeModeUiGuncelle(v, false);
 };
 
 sarjProfiliUygula = function() {
@@ -252,9 +283,11 @@ sarjProfiliUygula = function() {
   }
 
   profileUiDirty=false; chargeModeDirty=false; profilMesajSon=Date.now();
+  chargeModeUiGuncelle(m, true);
   if(st){
-    st.textContent='✓ MQTT üzerinden uygulandı: '+(m==='auto'?'OTOMATİK':'MANUEL')+
-      (m==='auto'?' • '+c+' • '+v+' V • '+ah+' Ah':'');
+    st.textContent=(m==='auto')
+      ? '✓ OTOMATİK profil ESP32’ye gönderildi • '+c+' • '+v+' V nominal • '+ah+' Ah'
+      : '✓ MANUEL mod ESP32’ye gönderildi • Otomatik profil devre dışı; şarj portu kullanıcı kontrolünde.';
   }
 };
 
@@ -306,7 +339,7 @@ function mqttConnectV21() {
 
 // V21 görünümünü başlat; yerel /api döngülerini GitHub sürümünde çalıştırma.
 window.onload = () => {
-  try { bataryaTipiDegisti(true); profileUiDirty=false; } catch(e) {}
+  try { bataryaTipiDegisti(true); profileUiDirty=false; chargeModeUiGuncelle(document.getElementById('charge-mode').value, true); } catch(e) {}
   try { monitorSurukleKur(); monitorFiltre('all'); } catch(e) {}
   updateButtonUI('btn-usb', false);
   updateButtonUI('btn-12v', false);
